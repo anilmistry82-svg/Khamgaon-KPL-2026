@@ -72,7 +72,22 @@ button { font-family: inherit; cursor: pointer; }
 }
 .topbar strong { color: var(--gold-light); }
 
-/* ---------- Hero ---------- */
+.sponsor-eyebrow {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 9px;
+  background: linear-gradient(90deg, var(--gold), var(--gold-light));
+  color: var(--pitch-dark);
+  font-family: 'Oswald', 'Noto Sans Devanagari', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  padding: 10px 20px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+  box-shadow: 0 6px 18px rgba(212,160,23,0.45);
+}
 .hero {
   position: relative;
   background:
