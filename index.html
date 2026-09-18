@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>खामगांव प्रीमियर लीग 2026 (KPL 2026) — खेळाडू नोंदणी</title>
+<meta name="description" content="KPL 2026 खेळाडू ऑनलाइन नोंदणी — खामगांव प्रीमियर लीग">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🏏%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="topbar">🏏 <strong>KPL 2026</strong> नोंदणी सुरू आहे — शेवटची तारीख: २० ऑक्टोबर २०२६</div>
+
+<header class="hero">
+  <div class="container">
+    <span class="hero-badge">🏆 सीझन 2026</span>
+    <h1 class="hero-title">
+      खामगांव प्रीमियर लीग
+      <span class="en">KHAMGAON PREMIER LEAGUE · KPL 2026</span>
+    </h1>
+    <p class="hero-sub">तुमच्या गावाचे, तुमच्या मैदानाचे सर्वात मोठे क्रिकेट अजिंक्यपद. खाली फॉर्म भरून तुमची खेळाडू नोंदणी पूर्ण करा.</p>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num">₹250</div><div class="label">नोंदणी शुल्क</div></div>
+      <div class="hero-stat"><div class="num" id="heroDeadline">20 ऑक्टो</div><div class="label">शेवटची तारीख</div></div>
+      <div class="hero-stat"><div class="num" id="heroCount">—</div><div class="label">नोंदणीकृत खेळाडू</div></div>
+    </div>
+  </div>
+</header>
+
+<main class="container section">
+
+  <!-- Registration closed banner (shown/hidden by script.js) -->
+  <div class="banner banner-closed" id="closedBanner" style="display:none;">
+    <div>
+      <strong>Player Registration is Closed</strong><br>
+      खेळाडू नोंदणी बंद झाली आहे. अधिक माहितीसाठी संयोजकांशी संपर्क साधा.
+    </div>
+  </div>
+
+  <!-- ================= FORM CARD ================= -->
+  <section class="card" id="formCard">
+    <div class="card-title">खेळाडू नोंदणी फॉर्म <span class="en">PLAYER REGISTRATION FORM</span></div>
+    <p class="card-desc">सर्व माहिती अचूक भरा. * चिन्हांकित सर्व रकाने आवश्यक आहेत.</p>
+
+    <div class="stepper">
+      <div class="step active" data-step="1"></div>
+      <div class="step" data-step="2"></div>
+      <div class="step" data-step="3"></div>
+    </div>
+    <div class="step-labels">
+      <span>खेळाडू माहिती</span>
+      <span>पेमेंट</span>
+      <span>फोटो अपलोड</span>
+    </div>
+
+    <div class="banner banner-error" id="formError" style="display:none;"></div>
+
+    <form id="regForm" novalidate>
+
+      <!-- STEP 1: player details -->
+      <div class="form-step" data-step="1">
+        <div class="field" data-field="playerName">
+          <label>खेळाडूचे पूर्ण नाव <span class="en">Player Name</span> *</label>
+          <input type="text" name="playerName" placeholder="उदा. रोहन देशमुख" autocomplete="name">
+          <div class="field-error">कृपया खेळाडूचे पूर्ण नाव टाका.</div>
+        </div>
+
+        <div class="field" data-field="mobile">
+          <label>मोबाईल नंबर <span class="en">Mobile Number</span> *</label>
+          <input type="tel" name="mobile" placeholder="10 अंकी मोबाईल नंबर" maxlength="10" inputmode="numeric" autocomplete="tel">
+          <div class="field-hint">हा नंबर एकदाच नोंदणीसाठी वापरता येईल.</div>
+          <div class="field-error">कृपया वैध 10 अंकी मोबाईल नंबर टाका.</div>
+        </div>
+
+        <div class="field" data-field="age">
+          <label>वय <span class="en">Age</span> *</label>
+          <input type="number" name="age" placeholder="उदा. 22" min="8" max="65" inputmode="numeric">
+          <div class="field-error">कृपया वैध वय टाका (8 ते 65 दरम्यान).</div>
+        </div>
+
+        <div class="field" data-field="role">
+          <label>खेळण्याची भूमिका <span class="en">Playing Role</span> *</label>
+          <div class="role-grid">
+            <label class="role-option"><input type="radio" name="role" value="Batsman"> 🏏 बॅट्समन</label>
+            <label class="role-option"><input type="radio" name="role" value="Bowler"> 🎯 बॉलर</label>
+            <label class="role-option"><input type="radio" name="role" value="All Rounder"> 🌟 ऑल राऊंडर</label>
+            <label class="role-option"><input type="radio" name="role" value="Wicket Keeper"> 🧤 विकेट कीपर</label>
+            <label class="role-option"><input type="radio" name="role" value="Fielder"> 🏃 फिल्डर</label>
+          </div>
+          <div class="field-error">कृपया एक भूमिका निवडा.</div>
+        </div>
+
+        <div class="field" data-field="village">
+          <label>गाव <span class="en">Village</span> *</label>
+          <input type="text" name="village" placeholder="उदा. खामगांव">
+          <div class="field-error">कृपया गावाचे नाव टाका.</div>
+        </div>
+
+        <div class="field" data-field="tshirt">
+          <label>टी-शर्ट साईज <span class="en">T-Shirt Size</span> *</label>
+          <select name="tshirt">
+            <option value="">-- साईज निवडा --</option>
+            <option value="S">S</option>
+            <option value="M">M</option>
+            <option value="L">L</option>
+            <option value="XL">XL</option>
+            <option value="XXL">XXL</option>
+            <option value="3XL">3XL</option>
+          </select>
+          <div class="field-error">कृपया टी-शर्ट साईज निवडा.</div>
+        </div>
+
+        <button type="button" class="btn btn-primary" id="toStep2">पुढे: पेमेंट &nbsp;→</button>
+      </div>
+
+      <!-- STEP 2: payment -->
+      <div class="form-step" data-step="2" style="display:none;">
+        <div class="card pay-card">
+          <div class="card-title" style="color:var(--cream);">नोंदणी शुल्क भरा <span class="en" style="color:rgba(251,247,238,0.75);">Registration Fee</span></div>
+          <div class="pay-amount"><span class="rupee">₹</span>250</div>
+          <div style="text-align:center;">
+            <div class="qr-wrap">
+              <img id="qrImg" alt="KPL 2026 payment QR code" width="190" height="190">
+            </div>
+          </div>
+          <div class="upi-id">
+            <span id="upiIdText">kunalgoregaonkar2006-1@oksbi</span>
+            <button type="button" class="copy-btn" id="copyUpiBtn">कॉपी</button>
+          </div>
+          <p style="font-size:12.5px; color:rgba(251,247,238,0.8); margin-top:14px;">वरील QR स्कॅन करा किंवा UPI आयडी वापरून ₹250 पाठवा, नंतर पेमेंटचा स्क्रीनशॉट पुढील स्टेपमध्ये अपलोड करा.</p>
+        </div>
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="backTo1">← मागे</button>
+          <button type="button" class="btn btn-primary" id="toStep3">पेमेंट झाले, पुढे जा →</button>
+        </div>
+      </div>
+
+      <!-- STEP 3: uploads -->
+      <div class="form-step" data-step="3" style="display:none;">
+        <div class="field" data-field="photo">
+          <label>खेळाडूचा फोटो <span class="en">Player Photo</span> *</label>
+          <div class="upload-box" id="photoBox">
+            <input type="file" accept="image/*" name="photo" id="photoInput">
+            <div class="upload-icon">📷</div>
+            <div class="upload-text">फोटो निवडण्यासाठी टॅप करा</div>
+          </div>
+          <div class="upload-preview" id="photoPreview"><img alt="Player photo preview"></div>
+          <div class="field-error">कृपया खेळाडूचा फोटो अपलोड करा.</div>
+        </div>
+
+        <div class="field" data-field="payment">
+          <label>पेमेंट स्क्रीनशॉट <span class="en">Payment Screenshot</span> *</label>
+          <div class="upload-box" id="paymentBox">
+            <input type="file" accept="image/*" name="payment" id="paymentInput">
+            <div class="upload-icon">🧾</div>
+            <div class="upload-text">पेमेंट स्क्रीनशॉट निवडण्यासाठी टॅप करा</div>
+          </div>
+          <div class="upload-preview" id="paymentPreview"><img alt="Payment screenshot preview"></div>
+          <div class="field-error">कृपया पेमेंट स्क्रीनशॉट अपलोड करा.</div>
+        </div>
+
+        <div class="btn-row">
+          <button type="button" class="btn btn-secondary" id="backTo2">← मागे</button>
+          <button type="submit" class="btn btn-primary" id="submitBtn">
+            <span id="submitLabel">नोंदणी सबमिट करा</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  </section>
+
+  <!-- ================= SUCCESS CARD ================= -->
+  <section class="card" id="successCard" style="display:none;">
+    <div class="success-wrap">
+      <div class="success-icon">✓</div>
+      <div class="card-title" style="text-align:center;">Registration Successful</div>
+      <p style="color:var(--ink-soft); text-align:center; margin-top:6px;">तुमची KPL 2026 खेळाडू नोंदणी यशस्वी झाली आहे.</p>
+      <div class="success-id" id="successRegId">KPL2026-000</div>
+      <div>
+        <div class="success-row"><span class="k">खेळाडूचे नाव</span><span class="v" id="successName">—</span></div>
+        <div class="success-row"><span class="k">स्पर्धा</span><span class="v">खामगांव प्रीमियर लीग 2026</span></div>
+        <div class="success-row"><span class="k">नोंदणी शुल्क</span><span class="v">₹250</span></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  © 2026 Khamgaon Premier League · KPL 2026<br>
+  प्रश्नांसाठी संयोजकांशी संपर्क साधा.
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KPL 2026 — Admin Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔐%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { background: var(--cream-dim); }
+  .admin-header {
+    background: var(--pitch-dark); color: var(--cream);
+    padding: 18px 0; margin-bottom: 20px;
+  }
+  .admin-header .container { display:flex; align-items:center; justify-content:space-between; }
+  .admin-title { font-family:'Oswald',sans-serif; font-size:18px; letter-spacing:0.03em; }
+  .admin-wrap { max-width: 1080px; }
+  .login-box { max-width: 380px; margin: 60px auto; }
+  .stat-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:12px; margin-bottom:20px; }
+  @media (min-width:700px){ .stat-grid{ grid-template-columns: repeat(4,1fr);} }
+  .stat-box { background:var(--white); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px; }
+  .stat-box .num { font-family:'Oswald',sans-serif; font-size:26px; color:var(--pitch-dark); }
+  .stat-box .label { font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .toolbar input, .toolbar select {
+    padding:10px 12px; border:1.5px solid var(--line); border-radius:var(--radius-sm);
+    font-size:14px; background:var(--white); flex:1; min-width:140px;
+  }
+  table { width:100%; border-collapse:collapse; background:var(--white); border-radius:var(--radius-sm); overflow:hidden; }
+  th, td { padding:10px 12px; font-size:13px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:var(--cream-dim); font-family:'Oswald',sans-serif; letter-spacing:0.02em; }
+  .table-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius-sm); }
+  .thumb { width:38px; height:38px; border-radius:6px; object-fit:cover; cursor:pointer; }
+  .row-actions { display:flex; gap:6px; }
+  .icon-btn {
+    border:1px solid var(--line); background:var(--white); border-radius:6px;
+    padding:6px 9px; font-size:13px;
+  }
+  .icon-btn.danger { border-color:#f3c9c8; color:var(--ball-red); }
+  .empty-state { text-align:center; padding:40px 16px; color:var(--ink-soft); }
+  #loginError { display:none; }
+  .modal-backdrop {
+    display:none; position:fixed; inset:0; background:rgba(20,30,25,0.6);
+    align-items:center; justify-content:center; padding:20px; z-index:50;
+  }
+  .modal-backdrop.open { display:flex; }
+  .modal { background:var(--white); border-radius:var(--radius); padding:20px; max-width:420px; width:100%; max-height:90vh; overflow:auto; }
+  @media print {
+    .no-print { display:none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginView">
+  <div class="admin-header"><div class="container"><div class="admin-title">🔐 KPL 2026 — Admin</div></div></div>
+  <div class="container login-box">
+    <div class="card">
+      <div class="card-title">Admin Login</div>
+      <p class="card-desc">केवळ संयोजकांसाठी. पासवर्ड टाका.</p>
+      <div class="banner banner-error" id="loginError">चुकीचा पासवर्ड. पुन्हा प्रयत्न करा.</div>
+      <div class="field">
+        <label>Admin Password</label>
+        <input type="password" id="passwordInput" placeholder="Password">
+      </div>
+      <button class="btn btn-primary" id="loginBtn">Login</button>
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboardView" style="display:none;">
+  <div class="admin-header">
+    <div class="container">
+      <div class="admin-title">🏏 KPL 2026 — Admin Dashboard</div>
+      <button class="icon-btn no-print" id="logoutBtn" style="background:transparent;border-color:rgba(255,255,255,0.3);color:var(--cream);">Logout</button>
+    </div>
+  </div>
+
+  <div class="container admin-wrap">
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total Registered Players</div></div>
+      <div class="stat-box"><div class="num" id="statToday">0</div><div class="label">Today's Registrations</div></div>
+      <div class="stat-box"><div class="num" id="statVillages">0</div><div class="label">Villages Represented</div></div>
+      <div class="stat-box"><div class="num" id="statStatus">Open</div><div class="label">Registration Status</div></div>
+    </div>
+
+    <div class="toolbar no-print">
+      <input type="text" id="searchInput" placeholder="🔍 Search by name or mobile">
+      <select id="roleFilter">
+        <option value="">All Roles</option>
+        <option value="Batsman">Batsman</option>
+        <option value="Bowler">Bowler</option>
+        <option value="All Rounder">All Rounder</option>
+        <option value="Wicket Keeper">Wicket Keeper</option>
+        <option value="Fielder">Fielder</option>
+      </select>
+      <select id="villageFilter"><option value="">All Villages</option></select>
+      <button class="icon-btn" id="exportBtn">⬇ Export CSV</button>
+      <button class="icon-btn" id="printBtn">🖨 Print</button>
+      <button class="icon-btn" id="refreshBtn">↻ Refresh</button>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Reg. ID</th><th>Photo</th><th>Name</th><th>Mobile</th><th>Age</th>
+            <th>Role</th><th>Village</th><th>Size</th><th>Payment</th><th>Date</th>
+            <th class="no-print">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="playersBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">अजून कोणतीही नोंदणी नाही.</div>
+  </div>
+</div>
+
+<!-- Image preview modal -->
+<div class="modal-backdrop" id="imgModal">
+  <div class="modal">
+    <img id="modalImg" alt="preview" style="width:100%;border-radius:8px;">
+    <button class="btn btn-secondary" style="margin-top:12px;" id="closeModal">Close</button>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
