@@ -30,12 +30,10 @@ function applyDeadlineState() {
 }
 
 // ---------------------------------------------------------
-// Payment QR code (UPI deep link rendered as a QR image)
+// Payment QR code — the real QR image is embedded directly
+// in index.html (<img id="qrImg">), so nothing to generate here.
 // ---------------------------------------------------------
 function renderQr() {
-  const upiUri = `upi://pay?pa=${encodeURIComponent(UPI_ID)}&pn=${encodeURIComponent(UPI_PAYEE)}&am=${UPI_AMOUNT}&cu=INR&tn=${encodeURIComponent("KPL 2026 Registration")}`;
-  const qrImg = document.getElementById("qrImg");
-  qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=380x380&data=${encodeURIComponent(upiUri)}`;
   document.getElementById("upiIdText").textContent = UPI_ID;
 }
 
@@ -122,6 +120,10 @@ function wireUpload(inputId, boxId, previewId, key) {
 wireUpload("photoInput", "photoBox", "photoPreview", "photo");
 wireUpload("paymentInput", "paymentBox", "paymentPreview", "payment");
 
+document.getElementById("payConfirmCheck").addEventListener("change", (e) => {
+  if (e.target.checked) clearFieldError("payConfirm");
+});
+
 // ---------------------------------------------------------
 // Validation
 // ---------------------------------------------------------
@@ -197,6 +199,13 @@ function validateStep3() {
   if (!fileData.payment) {
     showFieldError("payment");
     valid = false;
+  }
+  const payConfirmCheck = document.getElementById("payConfirmCheck");
+  if (!payConfirmCheck.checked) {
+    showFieldError("payConfirm");
+    valid = false;
+  } else {
+    clearFieldError("payConfirm");
   }
   return valid;
 }
