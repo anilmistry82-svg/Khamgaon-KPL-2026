@@ -37,6 +37,10 @@
     padding:6px 9px; font-size:13px;
   }
   .icon-btn.danger { border-color:#f3c9c8; color:var(--ball-red); }
+  .status-badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+  .status-pending { background:#FCEED3; color:#8a5a00; }
+  .status-verified { background:#DFF3E7; color:#1B4332; }
+  .verify-btn { border:1px solid var(--turf); color:var(--turf); background:var(--white); border-radius:6px; padding:5px 9px; font-size:12px; font-weight:600; margin-top:4px; }
   .empty-state { text-align:center; padding:40px 16px; color:var(--ink-soft); }
   #loginError { display:none; }
   .modal-backdrop {
@@ -84,6 +88,7 @@
       <div class="stat-box"><div class="num" id="statToday">0</div><div class="label">Today's Registrations</div></div>
       <div class="stat-box"><div class="num" id="statVillages">0</div><div class="label">Villages Represented</div></div>
       <div class="stat-box"><div class="num" id="statStatus">Open</div><div class="label">Registration Status</div></div>
+      <div class="stat-box"><div class="num" id="statPending" style="color:#B3211E;">0</div><div class="label">Payment Pending Verification</div></div>
     </div>
 
     <div class="toolbar no-print">
@@ -107,7 +112,7 @@
         <thead>
           <tr>
             <th>Reg. ID</th><th>Photo</th><th>Name</th><th>Mobile</th><th>Age</th>
-            <th>Role</th><th>Village</th><th>Size</th><th>Payment</th><th>Date</th>
+            <th>Role</th><th>Village</th><th>Size</th><th>Payment</th><th>Status</th><th>Date</th>
             <th class="no-print">Actions</th>
           </tr>
         </thead>

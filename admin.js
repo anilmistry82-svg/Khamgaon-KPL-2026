@@ -96,6 +96,8 @@ function updateStats(result) {
   const villages = new Set(allPlayers.map((p) => p.village.trim().toLowerCase()));
   document.getElementById("statVillages").textContent = villages.size;
   document.getElementById("statStatus").textContent = result.registrationOpen ? "Open" : "Closed";
+  const pendingCount = allPlayers.filter((p) => p.paymentStatus !== "Verified").length;
+  document.getElementById("statPending").textContent = pendingCount;
 }
 
 function populateVillageFilter() {
@@ -130,6 +132,12 @@ function renderTable() {
       <td>${escapeHtml(p.village)}</td>
       <td>${escapeHtml(p.tshirt)}</td>
       <td>${p.paymentUrl ? `<button class="icon-btn" onclick="openImg('${p.paymentUrl}')">View</button>` : "—"}</td>
+      <td>
+        <span class="status-badge ${p.paymentStatus === "Verified" ? "status-verified" : "status-pending"}">${p.paymentStatus === "Verified" ? "✓ Verified" : "⏳ Pending"}</span><br>
+        <button class="verify-btn" onclick="togglePaymentStatus('${p.registrationId}', '${p.paymentStatus === "Verified" ? "Pending" : "Verified"}')">
+          ${p.paymentStatus === "Verified" ? "Mark Pending" : "Mark Verified"}
+        </button>
+      </td>
       <td>${new Date(p.timestamp).toLocaleString("en-IN")}</td>
       <td class="no-print">
         <div class="row-actions">
@@ -174,6 +182,22 @@ async function deletePlayer(registrationId) {
 window.deletePlayer = deletePlayer;
 
 // ---------------------------------------------------------
+// Payment verification toggle
+// ---------------------------------------------------------
+async function togglePaymentStatus(registrationId, newStatus) {
+  const result = await callApi("updatePaymentStatus", { registrationId, status: newStatus });
+  if (result.success) {
+    const player = allPlayers.find((p) => p.registrationId === registrationId);
+    if (player) player.paymentStatus = result.status;
+    renderTable();
+    document.getElementById("statPending").textContent = allPlayers.filter((p) => p.paymentStatus !== "Verified").length;
+  } else {
+    alert("Update failed: " + (result.message || "unknown error"));
+  }
+}
+window.togglePaymentStatus = togglePaymentStatus;
+
+// ---------------------------------------------------------
 // Image modal
 // ---------------------------------------------------------
 function openImg(url) {
@@ -192,9 +216,9 @@ document.getElementById("imgModal").addEventListener("click", (e) => {
 // Export CSV
 // ---------------------------------------------------------
 document.getElementById("exportBtn").addEventListener("click", () => {
-  const headers = ["Registration ID", "Player Name", "Mobile", "Age", "Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL", "Timestamp"];
+  const headers = ["Registration ID", "Player Name", "Mobile", "Age", "Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL", "Payment Status", "Timestamp"];
   const rows = allPlayers.map((p) => [
-    p.registrationId, p.playerName, p.mobile, p.age, p.role, p.village, p.tshirt, p.photoUrl, p.paymentUrl, p.timestamp,
+    p.registrationId, p.playerName, p.mobile, p.age, p.role, p.village, p.tshirt, p.photoUrl, p.paymentUrl, p.paymentStatus, p.timestamp,
   ]);
   const csv = [headers, ...rows]
     .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
