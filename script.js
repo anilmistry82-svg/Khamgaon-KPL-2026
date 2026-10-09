@@ -283,7 +283,6 @@ document.getElementById("regForm").addEventListener("submit", async (e) => {
     // Success
     document.getElementById("regForm").closest(".card").style.display = "none";
     document.getElementById("closedBanner").style.display = "none";
-    document.getElementById("successRegId").textContent = result.registrationId;
     document.getElementById("successName").textContent = values.playerName;
     document.getElementById("successCard").style.display = "block";
     document.getElementById("successCard").scrollIntoView({ behavior: "smooth" });
