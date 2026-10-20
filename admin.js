@@ -64,6 +64,7 @@ async function showDashboard() {
   document.getElementById("loginView").style.display = "none";
   document.getElementById("dashboardView").style.display = "block";
   await loadPlayers();
+  await loadRegistrationSettings();
 }
 
 // ---------------------------------------------------------
@@ -162,7 +163,60 @@ function escapeHtml(str) {
 document.getElementById("searchInput").addEventListener("input", renderTable);
 document.getElementById("roleFilter").addEventListener("change", renderTable);
 document.getElementById("villageFilter").addEventListener("change", renderTable);
-document.getElementById("refreshBtn").addEventListener("click", loadPlayers);
+document.getElementById("refreshBtn").addEventListener("click", async () => { await loadPlayers(); await loadRegistrationSettings(); });
+
+document.getElementById("saveRegistrationSettingsBtn").addEventListener("click", saveRegistrationSettings);
+document.getElementById("reloadRegistrationSettingsBtn").addEventListener("click", loadRegistrationSettings);
+
+function formatISTInput(isoString) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date(isoString));
+  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}T${value.hour}:${value.minute}`;
+}
+
+async function loadRegistrationSettings() {
+  const message = document.getElementById("settingsMessage");
+  message.textContent = "Loading settings...";
+  try {
+    const result = await callApi("adminGetRegistrationSettings");
+    if (!result.success) {
+      message.textContent = result.message || "Could not load settings.";
+      return;
+    }
+    document.getElementById("registrationDeadline").value = formatISTInput(result.deadline);
+    document.getElementById("registrationEnabled").value = String(!!result.registrationEnabled);
+    message.textContent = `Current status: ${result.registrationOpen ? "OPEN" : "CLOSED"}. Deadline: ${formatISTInput(result.deadline).replace("T", " ")} IST`;
+  } catch (error) {
+    message.textContent = "Connection error while loading registration settings.";
+  }
+}
+
+async function saveRegistrationSettings() {
+  const button = document.getElementById("saveRegistrationSettingsBtn");
+  const message = document.getElementById("settingsMessage");
+  const deadline = document.getElementById("registrationDeadline").value;
+  const enabled = document.getElementById("registrationEnabled").value === "true";
+  if (!deadline) { message.textContent = "Please choose a deadline date and time."; return; }
+  button.disabled = true;
+  button.textContent = "Saving...";
+  try {
+    const result = await callApi("adminUpdateRegistrationSettings", { deadline, enabled });
+    if (!result.success) {
+      message.textContent = result.message || "Settings were not saved.";
+      return;
+    }
+    message.textContent = `Saved. Registration is ${result.registrationOpen ? "OPEN" : "CLOSED"}; deadline ${formatISTInput(result.deadline).replace("T", " ")} IST.`;
+    await loadPlayers();
+  } catch (error) {
+    message.textContent = "Connection error. Please try saving again.";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Save Registration Settings";
+  }
+}
 
 // ---------------------------------------------------------
 // Delete
