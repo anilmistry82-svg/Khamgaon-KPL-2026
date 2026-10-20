@@ -32,8 +32,10 @@ const SHEET_HEADERS = [
   "Playing Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL",
 ];
 
-// Public registration closes automatically after this moment (IST).
-const REGISTRATION_DEADLINE = new Date("2026-10-20T23:59:59+05:30");
+// Default registration deadline (IST). Admin settings are stored in Script Properties.
+const DEFAULT_REGISTRATION_DEADLINE = "2026-11-07T23:59:00+05:30";
+const PROP_REGISTRATION_DEADLINE = "REGISTRATION_DEADLINE";
+const PROP_REGISTRATION_ENABLED = "REGISTRATION_ENABLED";
 
 const SESSION_DURATION_SECONDS = 6 * 60 * 60; // 6 hours
 
@@ -56,6 +58,12 @@ function doPost(e) {
         return jsonResponse(handleRegister(body));
       case "publicCount":
         return jsonResponse(handlePublicCount());
+      case "publicSettings":
+        return jsonResponse(handlePublicSettings());
+      case "adminGetRegistrationSettings":
+        return jsonResponse(handleAdminGetRegistrationSettings(body));
+      case "adminUpdateRegistrationSettings":
+        return jsonResponse(handleAdminUpdateRegistrationSettings(body));
       case "adminLogin":
         return jsonResponse(handleAdminLogin(body));
       case "listPlayers":
@@ -117,8 +125,44 @@ function saveFileToDrive(fileObj, prefix) {
 // ---------------------------------------------------------
 // Registration
 // ---------------------------------------------------------
+function getRegistrationConfig() {
+  const props = PropertiesService.getScriptProperties();
+  const rawDeadline = props.getProperty(PROP_REGISTRATION_DEADLINE) || DEFAULT_REGISTRATION_DEADLINE;
+  const parsedDeadline = new Date(rawDeadline);
+  const deadline = isNaN(parsedDeadline.getTime()) ? new Date(DEFAULT_REGISTRATION_DEADLINE) : parsedDeadline;
+  const enabledValue = props.getProperty(PROP_REGISTRATION_ENABLED);
+  const enabled = enabledValue === null ? true : enabledValue === "true";
+  return { deadline: deadline, deadlineIso: deadline.toISOString(), enabled: enabled, open: enabled && new Date() <= deadline };
+}
+
+function handlePublicSettings() {
+  const config = getRegistrationConfig();
+  return { success: true, registrationOpen: config.open, registrationEnabled: config.enabled, deadline: config.deadlineIso };
+}
+
+function handleAdminGetRegistrationSettings(body) {
+  if (!isAuthorized(body.token)) return { success: false, code: "UNAUTHORIZED", message: "Please log in again." };
+  const config = getRegistrationConfig();
+  return { success: true, registrationOpen: config.open, registrationEnabled: config.enabled, deadline: config.deadlineIso };
+}
+
+function handleAdminUpdateRegistrationSettings(body) {
+  if (!isAuthorized(body.token)) return { success: false, code: "UNAUTHORIZED", message: "Please log in again." };
+  const deadlineInput = String(body.deadline || "");
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(deadlineInput)) {
+    return { success: false, message: "Please enter a valid deadline date and time." };
+  }
+  const deadline = new Date(deadlineInput + ":00+05:30");
+  if (isNaN(deadline.getTime())) return { success: false, message: "Invalid deadline date and time." };
+  if (typeof body.enabled !== "boolean") return { success: false, message: "Registration Open/Close setting is required." };
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(PROP_REGISTRATION_DEADLINE, deadline.toISOString());
+  props.setProperty(PROP_REGISTRATION_ENABLED, body.enabled ? "true" : "false");
+  return handleAdminGetRegistrationSettings(body);
+}
+
 function handleRegister(body) {
-  if (new Date() > REGISTRATION_DEADLINE) {
+  if (!getRegistrationConfig().open) {
     return { success: false, code: "REGISTRATION_CLOSED", message: "Player Registration is Closed" };
   }
 
@@ -233,7 +277,9 @@ function handleListPlayers(body) {
   return {
     success: true,
     players: players,
-    registrationOpen: new Date() <= REGISTRATION_DEADLINE,
+    registrationOpen: getRegistrationConfig().open,
+    registrationEnabled: getRegistrationConfig().enabled,
+    deadline: getRegistrationConfig().deadlineIso,
   };
 }
 
