@@ -1,297 +1,147 @@
-/* =========================================================
-   KPL 2026 — Admin dashboard logic
-   Auth is verified server-side in Code.gs. This file never
-   contains the real password — it only forwards what the
-   admin types to the server and stores the session token
-   the server returns.
-   ========================================================= */
-
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQF8B25Jidwf0vLDTBg1HRPSMVMa6R9nSPhHDc5tiGX5w74dhHRJd7458Qqd7RPGOF/exec";
-
-let sessionToken = sessionStorage.getItem("kplAdminToken") || null;
-let allPlayers = [];
-
-// ---------------------------------------------------------
-// API helper (text/plain avoids a CORS preflight to Apps Script)
-// ---------------------------------------------------------
-async function callApi(action, extra) {
-  const res = await fetch(GAS_WEB_APP_URL, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(Object.assign({ action, token: sessionToken }, extra || {})),
-  });
-  return res.json();
-}
-
-// ---------------------------------------------------------
-// Login
-// ---------------------------------------------------------
-document.getElementById("loginBtn").addEventListener("click", doLogin);
-document.getElementById("passwordInput").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") doLogin();
-});
-
-async function doLogin() {
-  const password = document.getElementById("passwordInput").value;
-  const btn = document.getElementById("loginBtn");
-  btn.disabled = true;
-  btn.textContent = "Checking...";
-  try {
-    const result = await callApi("adminLogin", { password });
-    if (result.success) {
-      sessionToken = result.token;
-      sessionStorage.setItem("kplAdminToken", sessionToken);
-      showDashboard();
-    } else {
-      document.getElementById("loginError").style.display = "flex";
-    }
-  } catch (e) {
-    document.getElementById("loginError").style.display = "flex";
-    document.getElementById("loginError").textContent = "Connection error. Try again.";
+<!DOCTYPE html>
+<html lang="mr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KPL 2026 — Admin Dashboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🔐%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+<style>
+  body { background: var(--cream-dim); }
+  .admin-header {
+    background: var(--pitch-dark); color: var(--cream);
+    padding: 18px 0; margin-bottom: 20px;
   }
-  btn.disabled = false;
-  btn.textContent = "Login";
-}
-
-document.getElementById("logoutBtn").addEventListener("click", () => {
-  sessionStorage.removeItem("kplAdminToken");
-  sessionToken = null;
-  document.getElementById("dashboardView").style.display = "none";
-  document.getElementById("loginView").style.display = "block";
-});
-
-async function showDashboard() {
-  document.getElementById("loginView").style.display = "none";
-  document.getElementById("dashboardView").style.display = "block";
-  await loadPlayers();
-  await loadRegistrationSettings();
-}
-
-// ---------------------------------------------------------
-// Load + render players
-// ---------------------------------------------------------
-async function loadPlayers() {
-  const result = await callApi("listPlayers");
-  if (!result.success) {
-    if (result.code === "UNAUTHORIZED") {
-      sessionStorage.removeItem("kplAdminToken");
-      sessionToken = null;
-      document.getElementById("dashboardView").style.display = "none";
-      document.getElementById("loginView").style.display = "block";
-      document.getElementById("loginError").style.display = "flex";
-      document.getElementById("loginError").textContent = "Session expired. Please log in again.";
-    }
-    return;
+  .admin-header .container { display:flex; align-items:center; justify-content:space-between; }
+  .admin-title { font-family:'Oswald',sans-serif; font-size:18px; letter-spacing:0.03em; }
+  .admin-wrap { max-width: 1080px; }
+  .login-box { max-width: 380px; margin: 60px auto; }
+  .stat-grid { display:grid; grid-template-columns: repeat(2,1fr); gap:12px; margin-bottom:20px; }
+  @media (min-width:700px){ .stat-grid{ grid-template-columns: repeat(4,1fr);} }
+  .stat-box { background:var(--white); border:1px solid var(--line); border-radius:var(--radius-sm); padding:16px; }
+  .stat-box .num { font-family:'Oswald',sans-serif; font-size:26px; color:var(--pitch-dark); }
+  .stat-box .label { font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:16px; }
+  .toolbar input, .toolbar select {
+    padding:10px 12px; border:1.5px solid var(--line); border-radius:var(--radius-sm);
+    font-size:14px; background:var(--white); flex:1; min-width:140px;
   }
-  allPlayers = result.players || [];
-  populateVillageFilter();
-  updateStats(result);
-  renderTable();
-}
-
-function updateStats(result) {
-  document.getElementById("statTotal").textContent = allPlayers.length;
-  const todayStr = new Date().toDateString();
-  const todayCount = allPlayers.filter((p) => new Date(p.timestamp).toDateString() === todayStr).length;
-  document.getElementById("statToday").textContent = todayCount;
-  const villages = new Set(allPlayers.map((p) => p.village.trim().toLowerCase()));
-  document.getElementById("statVillages").textContent = villages.size;
-  document.getElementById("statStatus").textContent = result.registrationOpen ? "Open" : "Closed";
-  const pendingCount = allPlayers.filter((p) => p.paymentStatus !== "Verified").length;
-  document.getElementById("statPending").textContent = pendingCount;
-}
-
-function populateVillageFilter() {
-  const select = document.getElementById("villageFilter");
-  const current = select.value;
-  const villages = [...new Set(allPlayers.map((p) => p.village))].sort();
-  select.innerHTML = '<option value="">All Villages</option>' + villages.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
-  select.value = current;
-}
-
-function renderTable() {
-  const search = document.getElementById("searchInput").value.trim().toLowerCase();
-  const role = document.getElementById("roleFilter").value;
-  const village = document.getElementById("villageFilter").value;
-
-  const filtered = allPlayers.filter((p) => {
-    const matchesSearch = !search || p.playerName.toLowerCase().includes(search) || p.mobile.includes(search);
-    const matchesRole = !role || p.role === role;
-    const matchesVillage = !village || p.village === village;
-    return matchesSearch && matchesRole && matchesVillage;
-  });
-
-  const tbody = document.getElementById("playersBody");
-  tbody.innerHTML = filtered.map((p) => `
-    <tr>
-      <td>${escapeHtml(p.registrationId)}</td>
-      <td>${p.photoUrl ? `<img class="thumb" src="${p.photoUrl}" onclick="openImg('${p.photoUrl}')">` : "—"}</td>
-      <td>${escapeHtml(p.playerName)}</td>
-      <td>${escapeHtml(p.mobile)}</td>
-      <td>${escapeHtml(String(p.age))}</td>
-      <td>${escapeHtml(p.role)}</td>
-      <td>${escapeHtml(p.village)}</td>
-      <td>${escapeHtml(p.tshirt)}</td>
-      <td>${p.paymentUrl ? `<button class="icon-btn" onclick="openImg('${p.paymentUrl}')">View</button>` : "—"}</td>
-      <td>
-        <span class="status-badge ${p.paymentStatus === "Verified" ? "status-verified" : "status-pending"}">${p.paymentStatus === "Verified" ? "✓ Verified" : "⏳ Pending"}</span><br>
-        <button class="verify-btn" onclick="togglePaymentStatus('${p.registrationId}', '${p.paymentStatus === "Verified" ? "Pending" : "Verified"}')">
-          ${p.paymentStatus === "Verified" ? "Mark Pending" : "Mark Verified"}
-        </button>
-      </td>
-      <td>${new Date(p.timestamp).toLocaleString("en-IN")}</td>
-      <td class="no-print">
-        <div class="row-actions">
-          <button class="icon-btn danger" onclick="deletePlayer('${p.registrationId}')">🗑 Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join("");
-
-  document.getElementById("emptyState").style.display = filtered.length ? "none" : "block";
-}
-
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str == null ? "" : str;
-  return div.innerHTML;
-}
-
-// ---------------------------------------------------------
-// Filters
-// ---------------------------------------------------------
-document.getElementById("searchInput").addEventListener("input", renderTable);
-document.getElementById("roleFilter").addEventListener("change", renderTable);
-document.getElementById("villageFilter").addEventListener("change", renderTable);
-document.getElementById("refreshBtn").addEventListener("click", async () => { await loadPlayers(); await loadRegistrationSettings(); });
-
-document.getElementById("saveRegistrationSettingsBtn").addEventListener("click", saveRegistrationSettings);
-document.getElementById("reloadRegistrationSettingsBtn").addEventListener("click", loadRegistrationSettings);
-
-function formatISTInput(isoString) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
-  }).formatToParts(new Date(isoString));
-  const value = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return `${value.year}-${value.month}-${value.day}T${value.hour}:${value.minute}`;
-}
-
-async function loadRegistrationSettings() {
-  const message = document.getElementById("settingsMessage");
-  message.textContent = "Loading settings...";
-  try {
-    const result = await callApi("adminGetRegistrationSettings");
-    if (!result.success) {
-      message.textContent = result.message || "Could not load settings.";
-      return;
-    }
-    document.getElementById("registrationDeadline").value = formatISTInput(result.deadline);
-    document.getElementById("registrationEnabled").value = String(!!result.registrationEnabled);
-    message.textContent = `Current status: ${result.registrationOpen ? "OPEN" : "CLOSED"}. Deadline: ${formatISTInput(result.deadline).replace("T", " ")} IST`;
-  } catch (error) {
-    message.textContent = "Connection error while loading registration settings.";
+  table { width:100%; border-collapse:collapse; background:var(--white); border-radius:var(--radius-sm); overflow:hidden; }
+  th, td { padding:10px 12px; font-size:13px; text-align:left; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:var(--cream-dim); font-family:'Oswald',sans-serif; letter-spacing:0.02em; }
+  .table-scroll { overflow-x:auto; border:1px solid var(--line); border-radius:var(--radius-sm); }
+  .thumb { width:38px; height:38px; border-radius:6px; object-fit:cover; cursor:pointer; }
+  .row-actions { display:flex; gap:6px; }
+  .icon-btn {
+    border:1px solid var(--line); background:var(--white); border-radius:6px;
+    padding:6px 9px; font-size:13px;
   }
-}
-
-async function saveRegistrationSettings() {
-  const button = document.getElementById("saveRegistrationSettingsBtn");
-  const message = document.getElementById("settingsMessage");
-  const deadline = document.getElementById("registrationDeadline").value;
-  const enabled = document.getElementById("registrationEnabled").value === "true";
-  if (!deadline) { message.textContent = "Please choose a deadline date and time."; return; }
-  button.disabled = true;
-  button.textContent = "Saving...";
-  try {
-    const result = await callApi("adminUpdateRegistrationSettings", { deadline, enabled });
-    if (!result.success) {
-      message.textContent = result.message || "Settings were not saved.";
-      return;
-    }
-    message.textContent = `Saved. Registration is ${result.registrationOpen ? "OPEN" : "CLOSED"}; deadline ${formatISTInput(result.deadline).replace("T", " ")} IST.`;
-    await loadPlayers();
-  } catch (error) {
-    message.textContent = "Connection error. Please try saving again.";
-  } finally {
-    button.disabled = false;
-    button.textContent = "Save Registration Settings";
+  .icon-btn.danger { border-color:#f3c9c8; color:var(--ball-red); }
+  .status-badge { display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; font-weight:700; }
+  .status-pending { background:#FCEED3; color:#8a5a00; }
+  .status-verified { background:#DFF3E7; color:#1B4332; }
+  .verify-btn { border:1px solid var(--turf); color:var(--turf); background:var(--white); border-radius:6px; padding:5px 9px; font-size:12px; font-weight:600; margin-top:4px; }
+  .empty-state { text-align:center; padding:40px 16px; color:var(--ink-soft); }
+  #loginError { display:none; }
+  .modal-backdrop {
+    display:none; position:fixed; inset:0; background:rgba(20,30,25,0.6);
+    align-items:center; justify-content:center; padding:20px; z-index:50;
   }
-}
-
-// ---------------------------------------------------------
-// Delete
-// ---------------------------------------------------------
-async function deletePlayer(registrationId) {
-  if (!confirm(`Delete registration ${registrationId}? This cannot be undone.`)) return;
-  const result = await callApi("deletePlayer", { registrationId });
-  if (result.success) {
-    allPlayers = allPlayers.filter((p) => p.registrationId !== registrationId);
-    populateVillageFilter();
-    renderTable();
-    document.getElementById("statTotal").textContent = allPlayers.length;
-  } else {
-    alert("Delete failed: " + (result.message || "unknown error"));
+  .modal-backdrop.open { display:flex; }
+  .modal { background:var(--white); border-radius:var(--radius); padding:20px; max-width:420px; width:100%; max-height:90vh; overflow:auto; }
+  @media print {
+    .no-print { display:none !important; }
   }
-}
-window.deletePlayer = deletePlayer;
+</style>
+</head>
+<body>
 
-// ---------------------------------------------------------
-// Payment verification toggle
-// ---------------------------------------------------------
-async function togglePaymentStatus(registrationId, newStatus) {
-  const result = await callApi("updatePaymentStatus", { registrationId, status: newStatus });
-  if (result.success) {
-    const player = allPlayers.find((p) => p.registrationId === registrationId);
-    if (player) player.paymentStatus = result.status;
-    renderTable();
-    document.getElementById("statPending").textContent = allPlayers.filter((p) => p.paymentStatus !== "Verified").length;
-  } else {
-    alert("Update failed: " + (result.message || "unknown error"));
-  }
-}
-window.togglePaymentStatus = togglePaymentStatus;
+<!-- LOGIN -->
+<div id="loginView">
+  <div class="admin-header"><div class="container"><div class="admin-title">🔐 KPL 2026 — Admin</div></div></div>
+  <div class="container login-box">
+    <div class="card">
+      <div class="card-title">Admin Login</div>
+      <p class="card-desc">केवळ संयोजकांसाठी. पासवर्ड टाका.</p>
+      <div class="banner banner-error" id="loginError">चुकीचा पासवर्ड. पुन्हा प्रयत्न करा.</div>
+      <div class="field">
+        <label>Admin Password</label>
+        <input type="password" id="passwordInput" placeholder="Password">
+      </div>
+      <button class="btn btn-primary" id="loginBtn">Login</button>
+    </div>
+  </div>
+</div>
 
-// ---------------------------------------------------------
-// Image modal
-// ---------------------------------------------------------
-function openImg(url) {
-  document.getElementById("modalImg").src = url;
-  document.getElementById("imgModal").classList.add("open");
-}
-window.openImg = openImg;
-document.getElementById("closeModal").addEventListener("click", () => {
-  document.getElementById("imgModal").classList.remove("open");
-});
-document.getElementById("imgModal").addEventListener("click", (e) => {
-  if (e.target.id === "imgModal") document.getElementById("imgModal").classList.remove("open");
-});
+<!-- DASHBOARD -->
+<div id="dashboardView" style="display:none;">
+  <div class="admin-header">
+    <div class="container">
+      <div class="admin-title">🏏 KPL 2026 — Admin Dashboard</div>
+      <button class="icon-btn no-print" id="logoutBtn" style="background:transparent;border-color:rgba(255,255,255,0.3);color:var(--cream);">Logout</button>
+    </div>
+  </div>
 
-// ---------------------------------------------------------
-// Export CSV
-// ---------------------------------------------------------
-document.getElementById("exportBtn").addEventListener("click", () => {
-  const headers = ["Registration ID", "Player Name", "Mobile", "Age", "Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL", "Payment Status", "Timestamp"];
-  const rows = allPlayers.map((p) => [
-    p.registrationId, p.playerName, p.mobile, p.age, p.role, p.village, p.tshirt, p.photoUrl, p.paymentUrl, p.paymentStatus, p.timestamp,
-  ]);
-  const csv = [headers, ...rows]
-    .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))
-    .join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = `KPL2026-players-${new Date().toISOString().slice(0, 10)}.csv`;
-  link.click();
-});
+  <div class="container admin-wrap">
+    <div class="stat-grid">
+      <div class="stat-box"><div class="num" id="statTotal">0</div><div class="label">Total Registered Players</div></div>
+      <div class="stat-box"><div class="num" id="statToday">0</div><div class="label">Today's Registrations</div></div>
+      <div class="stat-box"><div class="num" id="statVillages">0</div><div class="label">Villages Represented</div></div>
+      <div class="stat-box"><div class="num" id="statStatus">Open</div><div class="label">Registration Status</div></div>
+      <div class="stat-box"><div class="num" id="statPending" style="color:#B3211E;">0</div><div class="label">Payment Pending Verification</div></div>
+    </div>
 
-// ---------------------------------------------------------
-// Print
-// ---------------------------------------------------------
-document.getElementById("printBtn").addEventListener("click", () => window.print());
+    <section class="settings-card no-print" aria-labelledby="registrationSettingsTitle">
+      <div class="card-title" id="registrationSettingsTitle">Registration Settings</div>
+      <p class="card-desc">Deadline IST (India time) आणि registration Open/Close इथून नियंत्रित करा.</p>
+      <div class="settings-grid">
+        <div><label for="registrationDeadline">Registration Deadline (IST)</label><input type="datetime-local" id="registrationDeadline" value="2026-11-07T23:59" required></div>
+        <div><label for="registrationEnabled">Registration Control</label><select id="registrationEnabled"><option value="true">Open (deadline पर्यंत)</option><option value="false">Close now</option></select></div>
+      </div>
+      <div class="setting-actions"><button class="btn btn-primary" id="saveRegistrationSettingsBtn">Save Registration Settings</button><button class="icon-btn" id="reloadRegistrationSettingsBtn">Reload Settings</button></div>
+      <div id="settingsMessage" role="status" aria-live="polite"></div>
+    </section>
 
-// ---------------------------------------------------------
-// Init
-// ---------------------------------------------------------
-if (sessionToken) {
-  showDashboard();
-}
+    <div class="toolbar no-print">
+      <input type="text" id="searchInput" placeholder="🔍 Search by name or mobile">
+      <select id="roleFilter">
+        <option value="">All Roles</option>
+        <option value="Batsman">Batsman</option>
+        <option value="Bowler">Bowler</option>
+        <option value="All Rounder">All Rounder</option>
+        <option value="Wicket Keeper">Wicket Keeper</option>
+        <option value="Fielder">Fielder</option>
+      </select>
+      <select id="villageFilter"><option value="">All Villages</option></select>
+      <button class="icon-btn" id="exportBtn">⬇ Export CSV</button>
+      <button class="icon-btn" id="printBtn">🖨 Print</button>
+      <button class="icon-btn" id="refreshBtn">↻ Refresh</button>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Reg. ID</th><th>Photo</th><th>Name</th><th>Mobile</th><th>Age</th>
+            <th>Role</th><th>Village</th><th>Size</th><th>Payment</th><th>Status</th><th>Date</th>
+            <th class="no-print">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="playersBody"></tbody>
+      </table>
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">अजून कोणतीही नोंदणी नाही.</div>
+  </div>
+</div>
+
+<!-- Image preview modal -->
+<div class="modal-backdrop" id="imgModal">
+  <div class="modal">
+    <img id="modalImg" alt="preview" style="width:100%;border-radius:8px;">
+    <button class="btn btn-secondary" style="margin-top:12px;" id="closeModal">Close</button>
+  </div>
+</div>
+
+<script src="admin.js"></script>
+</body>
+</html>
