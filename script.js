@@ -6,8 +6,9 @@
 // See README.md → "Google Apps Script setup" for exact steps.
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQF8B25Jidwf0vLDTBg1HRPSMVMa6R9nSPhHDc5tiGX5w74dhHRJd7458Qqd7RPGOF/exec";
 
-// Registration window (IST). Public registration closes automatically after this.
-const REGISTRATION_DEADLINE = new Date("2026-10-20T23:59:59+05:30");
+// Registration status/deadline are loaded from server-side admin settings.
+let serverRegistrationOpen = false;
+let registrationSettingsLoaded = false;
 
 const UPI_ID = "kunalgoregaonkar2006-1@oksbi";
 const UPI_AMOUNT = "250";
@@ -17,15 +18,36 @@ const UPI_PAYEE = "KPL 2026";
 // Deadline check (client-side UX only — server enforces the real rule)
 // ---------------------------------------------------------
 function isRegistrationOpen() {
-  return new Date() <= REGISTRATION_DEADLINE;
+  return registrationSettingsLoaded && serverRegistrationOpen;
+}
+
+async function loadRegistrationSettings() {
+  try {
+    const res = await fetch(GAS_WEB_APP_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ action: "publicSettings" }),
+    });
+    const result = await res.json();
+    registrationSettingsLoaded = !!result.success;
+    serverRegistrationOpen = !!(result.success && result.registrationOpen);
+  } catch (err) {
+    registrationSettingsLoaded = false;
+    serverRegistrationOpen = false;
+  }
+  applyDeadlineState();
 }
 
 function applyDeadlineState() {
   const formCard = document.getElementById("formCard");
   const closedBanner = document.getElementById("closedBanner");
+  if (!formCard || !closedBanner) return;
   if (!isRegistrationOpen()) {
     formCard.style.display = "none";
     closedBanner.style.display = "flex";
+  } else {
+    formCard.style.display = "";
+    closedBanner.style.display = "none";
   }
 }
 
@@ -298,5 +320,5 @@ document.getElementById("regForm").addEventListener("submit", async (e) => {
 // ---------------------------------------------------------
 // Init
 // ---------------------------------------------------------
-applyDeadlineState();
+loadRegistrationSettings();
 renderQr();
