@@ -11,6 +11,14 @@ const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxQF8B25Jidwf0v
 let sessionToken = sessionStorage.getItem("kplAdminToken") || null;
 let allPlayers = [];
 
+// Converts any Google Drive link (old "uc?export=view" or new) into a thumbnail URL that works inside <img>.
+// This also fixes photos of players who registered earlier.
+function driveImg(url) {
+  if (!url) return "";
+  const m = /[?&]id=([\w-]+)/.exec(url) || /\/d\/([\w-]+)/.exec(url);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w1200` : url;
+}
+
 // ---------------------------------------------------------
 // API helper (text/plain avoids a CORS preflight to Apps Script)
 // ---------------------------------------------------------
@@ -94,7 +102,7 @@ function updateStats(result) {
   const todayStr = new Date().toDateString();
   const todayCount = allPlayers.filter((p) => new Date(p.timestamp).toDateString() === todayStr).length;
   document.getElementById("statToday").textContent = todayCount;
-  const villages = new Set(allPlayers.map((p) => p.village.trim().toLowerCase()));
+  const villages = new Set(allPlayers.map((p) => String(p.village || "").trim().toLowerCase()));
   document.getElementById("statVillages").textContent = villages.size;
   document.getElementById("statStatus").textContent = result.registrationOpen ? "Open" : "Closed";
   const pendingCount = allPlayers.filter((p) => p.paymentStatus !== "Verified").length;
@@ -104,7 +112,7 @@ function updateStats(result) {
 function populateVillageFilter() {
   const select = document.getElementById("villageFilter");
   const current = select.value;
-  const villages = [...new Set(allPlayers.map((p) => p.village))].sort();
+  const villages = [...new Set(allPlayers.map((p) => String(p.village || "")))].sort();
   select.innerHTML = '<option value="">All Villages</option>' + villages.map((v) => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
   select.value = current;
 }
@@ -115,7 +123,7 @@ function renderTable() {
   const village = document.getElementById("villageFilter").value;
 
   const filtered = allPlayers.filter((p) => {
-    const matchesSearch = !search || p.playerName.toLowerCase().includes(search) || p.mobile.includes(search);
+    const matchesSearch = !search || String(p.playerName).toLowerCase().includes(search) || String(p.mobile).includes(search);
     const matchesRole = !role || p.role === role;
     const matchesVillage = !village || p.village === village;
     return matchesSearch && matchesRole && matchesVillage;
@@ -125,14 +133,14 @@ function renderTable() {
   tbody.innerHTML = filtered.map((p) => `
     <tr>
       <td>${escapeHtml(p.registrationId)}</td>
-      <td>${p.photoUrl ? `<img class="thumb" src="${p.photoUrl}" onclick="openImg('${p.photoUrl}')">` : "—"}</td>
+      <td>${p.photoUrl ? `<img class="thumb" src="${driveImg(p.photoUrl)}" referrerpolicy="no-referrer" onclick="openImg('${driveImg(p.photoUrl)}')">` : "—"}</td>
       <td>${escapeHtml(p.playerName)}</td>
       <td>${escapeHtml(p.mobile)}</td>
       <td>${escapeHtml(String(p.age))}</td>
       <td>${escapeHtml(p.role)}</td>
       <td>${escapeHtml(p.village)}</td>
       <td>${escapeHtml(p.tshirt)}</td>
-      <td>${p.paymentUrl ? `<button class="icon-btn" onclick="openImg('${p.paymentUrl}')">View</button>` : "—"}</td>
+      <td>${p.paymentUrl ? `<button class="icon-btn" onclick="openImg('${driveImg(p.paymentUrl)}')">View</button>` : "—"}</td>
       <td>
         <span class="status-badge ${p.paymentStatus === "Verified" ? "status-verified" : "status-pending"}">${p.paymentStatus === "Verified" ? "✓ Verified" : "⏳ Pending"}</span><br>
         <button class="verify-btn" onclick="togglePaymentStatus('${p.registrationId}', '${p.paymentStatus === "Verified" ? "Pending" : "Verified"}')">
@@ -255,7 +263,9 @@ window.togglePaymentStatus = togglePaymentStatus;
 // Image modal
 // ---------------------------------------------------------
 function openImg(url) {
-  document.getElementById("modalImg").src = url;
+  const img = document.getElementById("modalImg");
+  img.referrerPolicy = "no-referrer";
+  img.src = url;
   document.getElementById("imgModal").classList.add("open");
 }
 window.openImg = openImg;

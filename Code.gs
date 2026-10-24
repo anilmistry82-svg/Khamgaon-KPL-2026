@@ -30,7 +30,9 @@ const SHEET_NAME = "Players";
 const SHEET_HEADERS = [
   "Timestamp", "Registration ID", "Player Name", "Mobile", "Age",
   "Playing Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL",
+  "Payment Status",
 ];
+const PAYMENT_STATUS_COL = 11; // column K
 
 // Default registration deadline (IST). Admin settings are stored in Script Properties.
 const DEFAULT_REGISTRATION_DEADLINE = "2026-11-07T23:59:00+05:30";
@@ -70,6 +72,8 @@ function doPost(e) {
         return jsonResponse(handleListPlayers(body));
       case "deletePlayer":
         return jsonResponse(handleDeletePlayer(body));
+      case "updatePaymentStatus":
+        return jsonResponse(handleUpdatePaymentStatus(body));
       default:
         return jsonResponse({ success: false, message: "Unknown action." });
     }
@@ -100,6 +104,9 @@ function getSheet() {
     sheet = ss.insertSheet(SHEET_NAME);
     sheet.appendRow(SHEET_HEADERS);
     sheet.setFrozenRows(1);
+  } else if (!sheet.getRange(1, PAYMENT_STATUS_COL).getValue()) {
+    // Older sheets created before payment verification existed
+    sheet.getRange(1, PAYMENT_STATUS_COL).setValue("Payment Status");
   }
   return sheet;
 }
@@ -119,7 +126,8 @@ function saveFileToDrive(fileObj, prefix) {
   );
   const file = getUploadFolder().createFile(blob);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  return `https://drive.google.com/uc?export=view&id=${file.getId()}`;
+  // "thumbnail" links load reliably inside <img>; the old "uc?export=view" links are often blocked by Google.
+  return `https://drive.google.com/thumbnail?id=${file.getId()}&sz=w1200`;
 }
 
 // ---------------------------------------------------------
@@ -202,14 +210,20 @@ function handleRegister(body) {
       }
     }
 
-    const registrationId = "KPL2026-" + String(data.length).padStart(4, "0");
+    // Highest existing number + 1 (row count creates duplicate IDs after a delete)
+    let maxNum = 0;
+    for (let i = 1; i < data.length; i++) {
+      const m = /(\d+)$/.exec(String(data[i][1]));
+      if (m) maxNum = Math.max(maxNum, Number(m[1]));
+    }
+    const registrationId = "KPL2026-" + String(maxNum + 1).padStart(4, "0");
     const photoUrl = saveFileToDrive(body.photo, registrationId + "-photo");
     const paymentUrl = saveFileToDrive(body.payment, registrationId + "-payment");
     const timestamp = new Date();
 
     sheet.appendRow([
       timestamp, registrationId, playerName, mobile, age,
-      role, village, tshirt, photoUrl, paymentUrl,
+      role, village, tshirt, photoUrl, paymentUrl, "Pending",
     ]);
 
     return {
@@ -265,13 +279,14 @@ function handleListPlayers(body) {
       timestamp: row[0] instanceof Date ? row[0].toISOString() : row[0],
       registrationId: row[1],
       playerName: row[2],
-      mobile: row[3],
+      mobile: String(row[3]),
       age: row[4],
       role: row[5],
       village: row[6],
       tshirt: row[7],
       photoUrl: row[8],
       paymentUrl: row[9],
+      paymentStatus: row[10] === "Verified" ? "Verified" : "Pending",
     });
   }
   return {
@@ -296,4 +311,26 @@ function handleDeletePlayer(body) {
     }
   }
   return { success: false, message: "Registration ID not found." };
+}
+
+function handleUpdatePaymentStatus(body) {
+  if (!isAuthorized(body.token)) {
+    return { success: false, code: "UNAUTHORIZED", message: "Please log in again." };
+  }
+  const status = body.status === "Verified" ? "Verified" : "Pending";
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const sheet = getSheet();
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][1]) === String(body.registrationId)) {
+        sheet.getRange(i + 1, PAYMENT_STATUS_COL).setValue(status);
+        return { success: true, status: status };
+      }
+    }
+    return { success: false, message: "Registration ID not found." };
+  } finally {
+    lock.releaseLock();
+  }
 }

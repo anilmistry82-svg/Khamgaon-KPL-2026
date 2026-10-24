@@ -21,6 +21,19 @@ function isRegistrationOpen() {
   return registrationSettingsLoaded && serverRegistrationOpen;
 }
 
+// Keeps the deadline shown on the page in sync with the admin's setting
+function updateDeadlineText(iso) {
+  try {
+    const d = new Date(iso);
+    const full = d.toLocaleDateString("mr-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric" });
+    const short = d.toLocaleDateString("mr-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short" });
+    const top = document.getElementById("topbarDeadline");
+    const hero = document.getElementById("heroDeadline");
+    if (top) top.textContent = full;
+    if (hero) hero.textContent = short;
+  } catch (e) { /* keep static text */ }
+}
+
 async function loadRegistrationSettings() {
   try {
     const res = await fetch(GAS_WEB_APP_URL, {
@@ -31,6 +44,7 @@ async function loadRegistrationSettings() {
     const result = await res.json();
     registrationSettingsLoaded = !!result.success;
     serverRegistrationOpen = !!(result.success && result.registrationOpen);
+    if (result.success && result.deadline) updateDeadlineText(result.deadline);
   } catch (err) {
     registrationSettingsLoaded = false;
     serverRegistrationOpen = false;
