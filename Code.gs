@@ -30,9 +30,11 @@ const SHEET_NAME = "Players";
 const SHEET_HEADERS = [
   "Timestamp", "Registration ID", "Player Name", "Mobile", "Age",
   "Playing Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL",
-  "Payment Status",
+  "Payment Status", "Screenshot Hash", "UTR / Transaction ID",
 ];
 const PAYMENT_STATUS_COL = 11; // column K
+const SCREENSHOT_HASH_COL = 12; // column L
+const UTR_COL = 13; // column M
 
 // Default registration deadline (IST). Admin settings are stored in Script Properties.
 const DEFAULT_REGISTRATION_DEADLINE = "2026-11-07T23:59:00+05:30";
@@ -107,6 +109,11 @@ function getSheet() {
   } else if (!sheet.getRange(1, PAYMENT_STATUS_COL).getValue()) {
     // Older sheets created before payment verification existed
     sheet.getRange(1, PAYMENT_STATUS_COL).setValue("Payment Status");
+  }
+  // Duplicate-payment columns (added later; safe to run on older sheets)
+  if (sheet.getLastRow() >= 1) {
+    if (!sheet.getRange(1, SCREENSHOT_HASH_COL).getValue()) sheet.getRange(1, SCREENSHOT_HASH_COL).setValue("Screenshot Hash");
+    if (!sheet.getRange(1, UTR_COL).getValue()) sheet.getRange(1, UTR_COL).setValue("UTR / Transaction ID");
   }
   return sheet;
 }
@@ -192,6 +199,8 @@ function handleRegister(body) {
   if (!tshirt) errors.push("T-shirt size required");
   if (!body.photo || !body.photo.base64) errors.push("Player photo required");
   if (!body.payment || !body.payment.base64) errors.push("Payment screenshot required");
+  const utr = String(body.utr || "").replace(/\s+/g, "");
+  if (!/^\d{12}$/.test(utr)) errors.push("Invalid UTR / Transaction ID (12 digits required)");
 
   if (errors.length) {
     return { success: false, message: errors.join(", ") };
@@ -210,6 +219,26 @@ function handleRegister(body) {
       }
     }
 
+    // Duplicate payment proof checks (same screenshot file, or same UTR)
+    const screenshotHash = hashBase64(body.payment.base64);
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][SCREENSHOT_HASH_COL - 1] && String(data[i][SCREENSHOT_HASH_COL - 1]) === screenshotHash) {
+        return {
+          success: false,
+          code: "DUPLICATE_PAYMENT",
+          message: "हा पेमेंट स्क्रीनशॉट आधीच वापरला गेला आहे. कृपया तुमचा स्वतःचा पेमेंट स्क्रीनशॉट अपलोड करा.",
+        };
+      }
+      const savedUtr = String(data[i][UTR_COL - 1] || "").trim();
+      if (savedUtr && savedUtr.padStart(12, "0") === utr) {
+        return {
+          success: false,
+          code: "DUPLICATE_UTR",
+          message: "हा UTR / Transaction ID आधीच वापरला गेला आहे. कृपया तुमच्या पेमेंटचा बरोबर नंबर टाका.",
+        };
+      }
+    }
+
     // Highest existing number + 1 (row count creates duplicate IDs after a delete)
     let maxNum = 0;
     for (let i = 1; i < data.length; i++) {
@@ -223,8 +252,11 @@ function handleRegister(body) {
 
     sheet.appendRow([
       timestamp, registrationId, playerName, mobile, age,
-      role, village, tshirt, photoUrl, paymentUrl, "Pending",
+      role, village, tshirt, photoUrl, paymentUrl, "Pending", screenshotHash, "",
     ]);
+    // Store UTR as plain text so a leading zero is never lost
+    const newRow = sheet.getLastRow();
+    sheet.getRange(newRow, UTR_COL).setNumberFormat("@").setValue(utr);
 
     return {
       success: true,
@@ -234,6 +266,11 @@ function handleRegister(body) {
   } finally {
     lock.releaseLock();
   }
+}
+
+function hashBase64(b64) {
+  const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, Utilities.base64Decode(b64));
+  return bytes.map((b) => ("0" + (b & 0xff).toString(16)).slice(-2)).join("");
 }
 
 function handlePublicCount() {
@@ -287,6 +324,7 @@ function handleListPlayers(body) {
       photoUrl: row[8],
       paymentUrl: row[9],
       paymentStatus: row[10] === "Verified" ? "Verified" : "Pending",
+      utr: row[UTR_COL - 1] ? String(row[UTR_COL - 1]) : "",
     });
   }
   return {

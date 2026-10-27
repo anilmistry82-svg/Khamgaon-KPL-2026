@@ -140,7 +140,7 @@ function renderTable() {
       <td>${escapeHtml(p.role)}</td>
       <td>${escapeHtml(p.village)}</td>
       <td>${escapeHtml(p.tshirt)}</td>
-      <td>${p.paymentUrl ? `<button class="icon-btn" onclick="openImg('${driveImg(p.paymentUrl)}')">View</button>` : "—"}</td>
+      <td>${p.paymentUrl ? `<button class="icon-btn" onclick="openImg('${driveImg(p.paymentUrl)}')">View</button>` : "—"}${p.utr ? `<br><small>UTR: ${escapeHtml(p.utr)}</small>` : ""}</td>
       <td>
         <span class="status-badge ${p.paymentStatus === "Verified" ? "status-verified" : "status-pending"}">${p.paymentStatus === "Verified" ? "✓ Verified" : "⏳ Pending"}</span><br>
         <button class="verify-btn" onclick="togglePaymentStatus('${p.registrationId}', '${p.paymentStatus === "Verified" ? "Pending" : "Verified"}')">
@@ -280,9 +280,9 @@ document.getElementById("imgModal").addEventListener("click", (e) => {
 // Export CSV
 // ---------------------------------------------------------
 document.getElementById("exportBtn").addEventListener("click", () => {
-  const headers = ["Registration ID", "Player Name", "Mobile", "Age", "Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL", "Payment Status", "Timestamp"];
+  const headers = ["Registration ID", "Player Name", "Mobile", "Age", "Role", "Village", "T-Shirt Size", "Photo URL", "Payment Screenshot URL", "UTR", "Payment Status", "Timestamp"];
   const rows = allPlayers.map((p) => [
-    p.registrationId, p.playerName, p.mobile, p.age, p.role, p.village, p.tshirt, p.photoUrl, p.paymentUrl, p.paymentStatus, p.timestamp,
+    p.registrationId, p.playerName, p.mobile, p.age, p.role, p.village, p.tshirt, p.photoUrl, p.paymentUrl, p.utr || "", p.paymentStatus, p.timestamp,
   ]);
   const csv = [headers, ...rows]
     .map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(","))

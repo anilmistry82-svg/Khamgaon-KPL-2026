@@ -243,6 +243,12 @@ function validateStep3() {
     showFieldError("payment");
     valid = false;
   }
+  if (!/^\d{12}$/.test(document.getElementById("utrInput").value.replace(/\s+/g, ""))) {
+    showFieldError("utr");
+    valid = false;
+  } else {
+    clearFieldError("utr");
+  }
   const payConfirmCheck = document.getElementById("payConfirmCheck");
   if (!payConfirmCheck.checked) {
     showFieldError("payConfirm");
@@ -284,6 +290,7 @@ document.getElementById("regForm").addEventListener("submit", async (e) => {
     tshirt: values.tshirt,
     photo: fileData.photo,
     payment: fileData.payment,
+    utr: document.getElementById("utrInput").value.replace(/\s+/g, ""),
   };
 
   try {
@@ -304,6 +311,10 @@ document.getElementById("regForm").addEventListener("submit", async (e) => {
         document.getElementById("formError").textContent =
           "हा मोबाईल नंबर आधीच नोंदणीकृत आहे. एका नंबरने एकच नोंदणी करता येते.";
         showStep(1);
+      } else if (result.code === "DUPLICATE_PAYMENT" || result.code === "DUPLICATE_UTR") {
+        document.getElementById("formError").style.display = "flex";
+        document.getElementById("formError").textContent = result.message;
+        showStep(3);
       } else if (result.code === "REGISTRATION_CLOSED") {
         applyDeadlineState();
       } else {

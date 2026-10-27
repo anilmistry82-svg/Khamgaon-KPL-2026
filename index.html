@@ -161,6 +161,13 @@
           <div class="field-error">कृपया पेमेंट स्क्रीनशॉट अपलोड करा.</div>
         </div>
 
+        <div class="field" data-field="utr">
+          <label>UTR / Transaction ID <span class="en">UPI Reference No.</span> *</label>
+          <input type="text" id="utrInput" name="utr" inputmode="numeric" maxlength="12" placeholder="12 अंकी UTR नंबर">
+          <div class="field-hint">पेमेंट स्क्रीनशॉटमध्ये "UPI Ref. No." / "UTR" / "Transaction ID" खाली 12 अंकी नंबर असतो.</div>
+          <div class="field-error">कृपया 12 अंकी UTR / Transaction ID टाका.</div>
+        </div>
+
         <div class="field" data-field="payConfirm" style="background:var(--cream-dim); border-radius:var(--radius-sm); padding:14px;">
           <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; margin-bottom:0;">
             <input type="checkbox" id="payConfirmCheck" style="width:20px; height:20px; margin-top:2px; flex-shrink:0;">
